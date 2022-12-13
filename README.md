@@ -7,3 +7,8 @@ By default, service accounts, users and groups are checked. However, it is possi
 
 To use the script, simply run _python3 rbac_check.py_
 
+## Sample report
+The following image shows a sample output of the script.
+
+![Alt text]([https://github.com/edurra/k8s-rbac-security-check/blob/main/rbac_check.PNG] "Output")
+
