@@ -1,6 +1,6 @@
 # k8s-rbac-security-check
 
-This script checks several RBAC configurations that can lead to security issues, such as privilege escalation. So far, the script checks for ClusterRoles and Roles that have permissions considered as risky due to security reasons.
+This script checks several Kubernetes RBAC configurations that can lead to security issues, such as privilege escalation. So far, the script checks for ClusterRoles and Roles that have permissions considered as risky due to security reasons.
 
 In addition, the script is able to recognize if the Role/ClusterRole has been assigned to any subject (service account, user, group). Moreover, if it has been assigned to a service account, the script will report if the service account is in use by any pod.
 
