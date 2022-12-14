@@ -100,6 +100,17 @@ def analyze_rule(rule):
                 result.append('delete deployments')
         if 'pods/exec' in rule.resources:
             result.append('exec on pods')
+        if ('volumes' in rule.resources or 'persistentvolumes' in rule.resources) and 'create' in rule.verbs:
+            result.append('create new volumes')
+        if 'roles' in rule.resources or 'clusterroles' in rule.resources:
+            if 'escalate' in rule.verbs:
+                result.append('create new {} with higher privileges'.format('/'.join(rule.resources))
+            if 'bind' in rule.verbs:
+                result.append('bind any {} to another subject'.format('/'.join(rule.resources))
+        if ('serviceaccounts' in rule.resources or 'users' in rule.resources or 'groups' in rule.resources) and 'impersonate' in rule.verbs:
+            result.append('impersonate any {}'.format('/'.join(rule.resources))
+        if 'serviceaccounts/token' in rule.resources and 'create' on rule.resources:
+            result.append('request tokens for service accounts')
     return result
 
 
