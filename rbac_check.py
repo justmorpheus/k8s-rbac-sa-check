@@ -166,62 +166,27 @@ def get_risky_roles():
     return risky_roles
 
 
-def print_risky_cluster_roles_info():
-    print("Discovering risky ClusterRoles")
-    risky_cluster_roles = get_risky_cluster_roles()
-    cluster_role_bindings = get_cluster_role_bindings()
-    pods_svc = get_service_account_pods()
-
-    for risky_clr in risky_cluster_roles.keys():
-        print("--------")
-        print("ClusterRole name: " + Fore.YELLOW + "{}".format(risky_clr))
-        print(Style.RESET_ALL)
-        print("    - Allows to: ")
-        for capability in risky_cluster_roles[risky_clr]:
-            print(Fore.YELLOW + "        {}".format(capability))
-        print(Style.RESET_ALL)
-        bindings = cluster_role_bindings.get(risky_clr)
-        if bindings == None:
-            bindings = []
-        bindings = clean_bindings(bindings, service_account=USE_SERVICE_ACCOUNTS, groups=USE_GROUPS, users=USE_USERS)
-        if bindings != None and len(bindings) > 0:
-            print("    - Assigned to: ")
-            for binding in bindings:
-                for subject in binding[1]:
-                    if subject.kind == "ServiceAccount":
-                        print(
-                            "        - The " + Fore.YELLOW + subject.namespace + "/" + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + " ClusterRoleBinding")
-
-                        if pods_svc.get(subject.namespace + "/" + subject.name):
-                            print(Fore.RED + "            - The pod(s) {} are using this service account".format(
-                                ",".join(pods_svc[subject.namespace + "/" + subject.name])))
-                        else:
-                            print(Fore.GREEN + "            - There are no pods using this service account")
-                        print(Style.RESET_ALL)
-                    else:
-                        print(
-                            "        - The " + Fore.YELLOW + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + " ClusterRoleBinding" + Style.RESET_ALL)
-                        print(Style.RESET_ALL)
-        else:
-            print(Fore.GREEN + "    - Not assigned to any subject")
-            print(Style.RESET_ALL)
-
-
-def print_risky_roles_info():
-    print("Discovering risky Roles")
-    risky_roles = get_risky_roles()
-    role_bindings = get_role_bindings()
+def print_risky_roles_info(type = "ClusterRole"):
+    if type == "ClusterRole":
+        print("Discovering risky ClusterRoles")
+        risky_roles = get_risky_cluster_roles()
+        role_bindings = get_cluster_role_bindings()
+    if type == "Role":
+        print("Discovering risky Roles")
+        risky_roles = get_risky_roles()
+        role_bindings = get_role_bindings()
     pods_svc = get_service_account_pods()
 
     for risky_r in risky_roles.keys():
         print("--------")
-        full_name_split = risky_r.split("/")
-        role_name = full_name_split[1]
-        namespace = full_name_split[0]
-        print("Role name: " + Fore.YELLOW + "{}".format(
-            role_name) + Style.RESET_ALL + " on namespace " + Fore.YELLOW + namespace)
+        if type == "Role":
+            full_name_split = risky_r.split("/")
+            role_name = full_name_split[1]
+            namespace = full_name_split[0]
+            print("{type} name: " + Fore.YELLOW + "{}".format(
+                role_name) + Style.RESET_ALL + " on namespace " + Fore.YELLOW + namespace)
+        if type == "ClusterRole":
+            print("{type} name: " + Fore.YELLOW + "{}".format(risky_r))
         print(Style.RESET_ALL)
         print("    - Allows to: ")
         for capability in risky_roles[risky_r]:
@@ -240,7 +205,7 @@ def print_risky_roles_info():
                     if subject.kind == "ServiceAccount":
                         print(
                             "        - The " + Fore.YELLOW + subject.namespace + "/" + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + " RoleBinding")
+                            binding[0] + Style.RESET_ALL + " {type}")
 
                         if pods_svc.get(subject.namespace + "/" + subject.name):
                             print(Fore.RED + "            - The pod(s) {} are using this service account".format(
@@ -251,7 +216,7 @@ def print_risky_roles_info():
                     else:
                         print(
                             "        - The " + Fore.YELLOW + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + " RoleBinding" + Style.RESET_ALL)
+                            binding[0] + Style.RESET_ALL + " {type}" + Style.RESET_ALL)
                         print(Style.RESET_ALL)
 
         else:
@@ -260,6 +225,6 @@ def print_risky_roles_info():
 
 
 if __name__ == "__main__":
-    print_risky_cluster_roles_info()
+    print_risky_roles_info(type = "ClusterRole")
     print("\n###########################\n")
-    print_risky_roles_info()
+    print_risky_roles_info(type = "Role")
