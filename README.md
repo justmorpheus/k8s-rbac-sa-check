@@ -9,6 +9,7 @@ To use the script, simply run _python3 rbac_check.py_
 
 By default, service accounts, users and groups are checked. However, it is possible to not scan for any of those subjects by using the options --no-service-accounts, --no-users and --no-groups respectively.
 
+It is also possible to export the results in CSV format by using the --output [FILENAME] option
 
 ## Sample report
 The following image shows a sample output of the script.
