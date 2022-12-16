@@ -104,12 +104,12 @@ def analyze_rule(rule):
             result.append('create new volumes')
         if 'roles' in rule.resources or 'clusterroles' in rule.resources:
             if 'escalate' in rule.verbs:
-                result.append('create new {} with higher privileges'.format('/'.join(rule.resources))
+                result.append('create new {} with higher privileges'.format('/'.join(rule.resources)))
             if 'bind' in rule.verbs:
-                result.append('bind any {} to another subject'.format('/'.join(rule.resources))
+                result.append('bind any {} to another subject'.format('/'.join(rule.resources)))
         if ('serviceaccounts' in rule.resources or 'users' in rule.resources or 'groups' in rule.resources) and 'impersonate' in rule.verbs:
-            result.append('impersonate any {}'.format('/'.join(rule.resources))
-        if 'serviceaccounts/token' in rule.resources and 'create' on rule.resources:
+            result.append('impersonate any {}'.format('/'.join(rule.resources)))
+        if 'serviceaccounts/token' in rule.resources and 'create' in rule.resources:
             result.append('request tokens for service accounts')
     return result
 
@@ -183,10 +183,10 @@ def print_risky_roles_info(type = "ClusterRole"):
             full_name_split = risky_r.split("/")
             role_name = full_name_split[1]
             namespace = full_name_split[0]
-            print("{type} name: " + Fore.YELLOW + "{}".format(
+            print("Role name: " + Fore.YELLOW + "{}".format(
                 role_name) + Style.RESET_ALL + " on namespace " + Fore.YELLOW + namespace)
         if type == "ClusterRole":
-            print("{type} name: " + Fore.YELLOW + "{}".format(risky_r))
+            print("ClusteRole name: " + Fore.YELLOW + "{}".format(risky_r))
         print(Style.RESET_ALL)
         print("    - Allows to: ")
         for capability in risky_roles[risky_r]:
@@ -205,7 +205,7 @@ def print_risky_roles_info(type = "ClusterRole"):
                     if subject.kind == "ServiceAccount":
                         print(
                             "        - The " + Fore.YELLOW + subject.namespace + "/" + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + " {type}")
+                            binding[0] + Style.RESET_ALL + f" {type}")
 
                         if pods_svc.get(subject.namespace + "/" + subject.name):
                             print(Fore.RED + "            - The pod(s) {} are using this service account".format(
@@ -216,7 +216,7 @@ def print_risky_roles_info(type = "ClusterRole"):
                     else:
                         print(
                             "        - The " + Fore.YELLOW + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + " {type}" + Style.RESET_ALL)
+                            binding[0] + Style.RESET_ALL + f" {type}" + Style.RESET_ALL)
                         print(Style.RESET_ALL)
 
         else:
