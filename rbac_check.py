@@ -227,7 +227,7 @@ def print_risky_roles_info(type="ClusterRole"):
                     output_subject_kind.append(subject.kind)
                     output_bindings.append(binding[0])
 
-                    if subject.kind == "ServiceAccount":
+                    if subject.kind == "ServiceAccount" and subject.namespace != None:
                         output_subject_namespace.append(subject.namespace)
                         print(
                             "        - The " + Fore.YELLOW + subject.namespace + "/" + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
