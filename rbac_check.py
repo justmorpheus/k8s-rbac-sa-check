@@ -3,6 +3,7 @@ from colorama import Fore, Style
 import argparse
 import os
 
+# Argument parser
 parser = argparse.ArgumentParser(description='Audit Kubernetes RBAC configurations')
 parser.add_argument('--service-accounts', action=argparse.BooleanOptionalAction, default=True,
                     help="By default set to --service-accounts. If --no-service-accounts used, service accounts will not be evaluated")
@@ -18,6 +19,7 @@ USE_USERS = vars(args)['users']
 USE_GROUPS = vars(args)['groups']
 OUTPUT = vars(args)['output']
 
+# Load Kubernetes configuration
 config.load_kube_config()
 r1 = client.RbacAuthorizationV1Api()
 v1 = client.CoreV1Api()
@@ -30,10 +32,11 @@ def get_cluster_role_bindings():
         name = crb.metadata.name
         subjects = crb.subjects
         role = crb.role_ref.name
-        if cluster_role_bindings_dict.get(role) == None:
+        if cluster_role_bindings_dict.get(role) is None:
             cluster_role_bindings_dict[role] = [[name, subjects]]
         else:
             cluster_role_bindings_dict[role].append([name, subjects])
+
     return cluster_role_bindings_dict
 
 
@@ -52,7 +55,7 @@ def get_role_bindings():
         full_name = namespace + "/" + name
         role = rb.role_ref.name
         full_role = namespace + "/" + role
-        if role_bindings_dict.get(full_role) == None:
+        if role_bindings_dict.get(full_role) is None:
             role_bindings_dict[full_role] = [[full_name, subjects]]
         else:
             role_bindings_dict[full_role].append([full_name, subjects])
@@ -69,7 +72,7 @@ def get_service_account_pods():
     service_accounts = {}
     for pod in pods.items:
         service_account = "default"
-        if pod.spec.service_account != None:
+        if pod.spec.service_account is not None:
             service_account = pod.spec.service_account
         pod_name = pod.metadata.name
         pod_namespace = pod.metadata.namespace
@@ -83,15 +86,13 @@ def get_service_account_pods():
 
 def analyze_rule(rule):
     result = []
-    if rule.resources != None:
+    if rule.resources is not None:
         if "*" in rule.resources:
             result.append('{} all resources'.format("/".join(rule.verbs)))
         if 'secrets' in rule.resources:
-            # Capability of reading secrets
             if '*' in rule.verbs or 'get' in rule.verbs or 'list' in rule.verbs or 'watch' in rule.verbs:
                 result.append('read secrets')
         if 'pods' in rule.resources:
-            # Capability of creating pods
             if '*' in rule.verbs or 'create' in rule.verbs or 'update' in rule.verbs or 'patch' in rule.verbs:
                 result.append('create/update/patch pods')
             if '*' in rule.verbs or 'delete' in rule.verbs:
@@ -110,8 +111,7 @@ def analyze_rule(rule):
                 result.append('create new {} with higher privileges'.format('/'.join(rule.resources)))
             if 'bind' in rule.verbs:
                 result.append('bind any {} to another subject'.format('/'.join(rule.resources)))
-        if (
-                'serviceaccounts' in rule.resources or 'users' in rule.resources or 'groups' in rule.resources) and 'impersonate' in rule.verbs:
+        if ('serviceaccounts' in rule.resources or 'users' in rule.resources or 'groups' in rule.resources) and 'impersonate' in rule.verbs:
             result.append('impersonate any {}'.format('/'.join(rule.resources)))
         if 'serviceaccounts/token' in rule.resources and 'create' in rule.resources:
             result.append('request tokens for service accounts')
@@ -120,9 +120,13 @@ def analyze_rule(rule):
 
 def clean_bindings(bindings, service_account=True, groups=True, users=True):
     result = []
+    if bindings is None:
+        return result
     for binding in bindings:
         binding_name = binding[0]
         subjects = []
+        if binding[1] is None:
+            continue
         for subject in binding[1]:
             if service_account and subject.kind == "ServiceAccount":
                 subjects.append(subject)
@@ -136,19 +140,17 @@ def clean_bindings(bindings, service_account=True, groups=True, users=True):
 
 
 def get_risky_cluster_roles():
-    # cluster_roles.items[0].metadata.name
     cluster_roles = get_cluster_roles()
     analyzed_roles = {}
     for cluster_role in cluster_roles:
         name = cluster_role.metadata.name
         rules = cluster_role.rules
         for rule in rules:
-            analyzed_roles[name] = analyze_rule(rule)
+            if name not in analyzed_roles:
+                analyzed_roles[name] = []
+            analyzed_roles[name].extend(analyze_rule(rule))
 
-    risky_cluster_roles = {}
-    for role in analyzed_roles.keys():
-        if len(analyzed_roles[role]) > 0:
-            risky_cluster_roles[role] = analyzed_roles[role]
+    risky_cluster_roles = {role: capabilities for role, capabilities in analyzed_roles.items() if capabilities}
     return risky_cluster_roles
 
 
@@ -161,12 +163,11 @@ def get_risky_roles():
         namespace = role.metadata.namespace
         full_name = namespace + "/" + name
         for rule in rules:
-            analyzed_roles[full_name] = analyze_rule(rule)
+            if full_name not in analyzed_roles:
+                analyzed_roles[full_name] = []
+            analyzed_roles[full_name].extend(analyze_rule(rule))
 
-    risky_roles = {}
-    for role in analyzed_roles.keys():
-        if len(analyzed_roles[role]) > 0:
-            risky_roles[role] = analyzed_roles[role]
+    risky_roles = {role: capabilities for role, capabilities in analyzed_roles.items() if capabilities}
     return risky_roles
 
 
@@ -175,8 +176,7 @@ def print_risky_roles_info(type="ClusterRole"):
         print("Discovering risky ClusterRoles")
         risky_roles = get_risky_cluster_roles()
         role_bindings = get_cluster_role_bindings()
-
-    if type == "Role":
+    elif type == "Role":
         print("Discovering risky Roles")
         risky_roles = get_risky_roles()
         role_bindings = get_role_bindings()
@@ -185,8 +185,6 @@ def print_risky_roles_info(type="ClusterRole"):
     if OUTPUT:
         f = open(OUTPUT, 'a')
     for risky_r in risky_roles.keys():
-        # To be used in case output is requested
-
         output_role_kind = type
         output_namespace = None
         output_subject = []
@@ -203,23 +201,20 @@ def print_risky_roles_info(type="ClusterRole"):
             role_name = full_name_split[1]
             namespace = full_name_split[0]
             output_namespace = namespace
-            print("Role name: " + Fore.YELLOW + "{}".format(
-                role_name) + Style.RESET_ALL + " on namespace " + Fore.YELLOW + namespace)
+            print("Role name: " + Fore.YELLOW + "{}".format(role_name) + Style.RESET_ALL + " on namespace " + Fore.YELLOW + namespace)
         if type == "ClusterRole":
-            print("ClusteRole name: " + Fore.YELLOW + "{}".format(risky_r))
+            print("ClusterRole name: " + Fore.YELLOW + "{}".format(risky_r))
         print(Style.RESET_ALL)
         print("    - Allows to: ")
         for capability in risky_roles[risky_r]:
             output_risks.append(capability)
             print(Fore.YELLOW + "        {}".format(capability))
             print(Style.RESET_ALL)
-        bindings = role_bindings.get(risky_r)
-        if bindings == None:
-            bindings = []
+        bindings = role_bindings.get(risky_r, [])
 
         bindings = clean_bindings(bindings, service_account=USE_SERVICE_ACCOUNTS, groups=USE_GROUPS, users=USE_USERS)
 
-        if bindings != None and len(bindings) > 0:
+        if bindings:
             print("    - Assigned to: ")
             for binding in bindings:
                 for subject in binding[1]:
@@ -227,24 +222,19 @@ def print_risky_roles_info(type="ClusterRole"):
                     output_subject_kind.append(subject.kind)
                     output_bindings.append(binding[0])
 
-                    if subject.kind == "ServiceAccount" and subject.namespace != None:
+                    if subject.kind == "ServiceAccount" and subject.namespace is not None:
                         output_subject_namespace.append(subject.namespace)
-                        print(
-                            "        - The " + Fore.YELLOW + subject.namespace + "/" + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + f" {type}")
+                        print("        - The " + Fore.YELLOW + subject.namespace + "/" + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW + binding[0] + Style.RESET_ALL + f" {type}")
 
                         if pods_svc.get(subject.namespace + "/" + subject.name):
                             output_pods.append(pods_svc[subject.namespace + "/" + subject.name])
-                            print(Fore.RED + "            - The pod(s) {} are using this service account".format(
-                                ",".join(pods_svc[subject.namespace + "/" + subject.name])))
+                            print(Fore.RED + "            - The pod(s) {} are using this service account".format(",".join(pods_svc[subject.namespace + "/" + subject.name])))
                         else:
                             print(Fore.GREEN + "            - There are no pods using this service account")
                             output_pods.append([])
                         print(Style.RESET_ALL)
                     else:
-                        print(
-                            "        - The " + Fore.YELLOW + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW +
-                            binding[0] + Style.RESET_ALL + f" {type}" + Style.RESET_ALL)
+                        print("        - The " + Fore.YELLOW + subject.name + Style.RESET_ALL + " " + subject.kind + " through the " + Fore.YELLOW + binding[0] + Style.RESET_ALL + f" {type}" + Style.RESET_ALL)
                         print(Style.RESET_ALL)
                         output_pods.append([])
                         output_subject_namespace.append([])
@@ -253,12 +243,10 @@ def print_risky_roles_info(type="ClusterRole"):
             print(Style.RESET_ALL)
 
         if OUTPUT:
-
-            for i in range(0, len(output_subject)):
+            for i in range(len(output_subject)):
                 risks = "--".join(output_risks)
                 pods = "--".join(output_pods[i])
-                f.write(
-                    f"{output_role}, {output_role_kind}, {output_namespace}, {output_bindings[i]}, {output_subject[i]}, {output_subject_namespace[i]}, {output_subject_kind[i]}, {pods}, {risks}\n")
+                f.write(f"{output_role}, {output_role_kind}, {output_namespace}, {output_bindings[i]}, {output_subject[i]}, {output_subject_namespace[i]}, {output_subject_kind[i]}, {pods}, {risks}\n")
     if OUTPUT:
         f.close()
 
@@ -267,10 +255,8 @@ if __name__ == "__main__":
     if OUTPUT:
         if os.path.isfile(OUTPUT):
             os.remove(OUTPUT)
-        f = open(OUTPUT, 'a')
-        f.write(
-            "RoleName, Role Kind, Role Namespace, Binding, Subject, Subject Namespace, Subject Kind,  Pods running subject, Risk\n")
-        f.close()
+        with open(OUTPUT, 'a') as f:
+            f.write("RoleName, Role Kind, Role Namespace, Binding, Subject, Subject Namespace, Subject Kind,  Pods running subject, Risk\n")
 
     print_risky_roles_info(type="ClusterRole")
     print("\n###########################\n")
