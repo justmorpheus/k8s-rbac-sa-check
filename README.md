@@ -1,20 +1,31 @@
 # k8s-rbac-security-check
 
-This script checks several Kubernetes RBAC configurations that can lead to security issues, such as privilege escalation. So far, the script checks for ClusterRoles and Roles that have permissions considered as risky due to security reasons.
+This script audits Kubernetes Role-Based Access Control (RBAC) configurations to identify risky ClusterRoles and Roles in your cluster. It also checks which pods can be exec-ed into using different shells and whether they run as root or a non-root user.
 
-In addition, the script is able to recognize if the Role/ClusterRole has been assigned to any subject (service account, user, group). Moreover, if it has been assigned to a service account, the script will report if the service account is in use by any pod.
+## Features
+
+- Identify Risky ClusterRoles and Roles: The script analyzes ClusterRoles and Roles to determine if they have potentially risky permissions such as reading secrets, executing on pods, impersonating users, etc.
+- Check Pod Exec Permissions: The script attempts to exec into pods using different shells (/bin/bash, /bin/sh, sh, bash) and identifies if they run as root or a non-root user.
+- Service Account Analysis: It checks which pods are using specific ServiceAccounts and provides detailed output regarding their exec permissions.
+
+## Requirements
+
+- Python 3.x
+- Kubernetes Python client library
+- colorama Python library
 
 ## Usage
-To use the script, simply run _python3 rbac_check.py_
 
-By default, service accounts, users and groups are checked. However, it is possible to not scan for any of those subjects by using the options --no-service-accounts, --no-users and --no-groups respectively.
+### To run full scan to detailed output for each risky ClusterRole and Role.
 
-It is also possible to export the results in CSV format by using the --output [FILENAME] option
+```
+python3 rbac-scan-full.py
+```
 
-## Sample report
-The following image shows a sample output of the script.
+- To use the script, simply run _python3 rbac_check.py
 
-![image alt text](https://github.com/edurra/k8s-rbac-security-check/blob/main/rbac_check.PNG)
+By default, service accounts, users and groups are checked.
+
 
 ## Thanks
 - Original author: https://github.com/edurra
