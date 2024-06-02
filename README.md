@@ -16,3 +16,6 @@ The following image shows a sample output of the script.
 
 ![image alt text](https://github.com/edurra/k8s-rbac-security-check/blob/main/rbac_check.PNG)
 
+## Thanks
+- Original author: https://github.com/edurra
+- Modified via chatgpt4o
